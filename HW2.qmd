@@ -1,0 +1,209 @@
+---
+title: "HW2"
+subtitle: "Create TableOne for the mushroom dataset"
+date: today
+author: Bo-Cheng, Qiu
+format:
+ pdf:
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+         \usepackage{geometry}
+         \geometry{verbose,tmargin=1cm,bmargin=1cm,lmargin=1cm,rmargin=1cm}
+#mainfont: "Microsoft JhengHei UI"
+#mainfont: "Microsoft JhengHei"
+mainfont: "Microsoft JhengHei Bold"
+toc: true
+lang: zh-Tw
+documentclass: article
+pdf-engine: xelatex
+execute:
+  tidy: true
+  echo: true
+  warning: false
+  message: false
+---
+
+## Data Describtion
+
+This dataset contains descriptions of hypothetical samples from various species of mushrooms families. The species in the dataset are classified into two categories: **poisonous** and **edible**. The classification is based on various characteristics such as cap shape, color, texture, stem properties, and habitat, similar to the categorization provided by the Audubon Society Field Guide to North American Mushrooms (1981). The edibility of the mushrooms is determined by the presence or absence of certain features, which are typical of either poisonous or edible varieties. This dataset was created for classification purposes, with the goal of building a model that can predict the edibility of a mushroom based on these features.
+
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Variable} & \textbf{Data Type} & \textbf{Definition} & \textbf{Note} \\
+\hline
+family & \text{String} & \text{The name of the family to which the mushroom species belongs} & \text{Multinomial} \\
+name & \text{String} & \text{The name of the mushroom species} & \text{Multinomial} \\
+class & \text{String} & \text{Classifies the mushroom as poisonous (p) or edible (e)} & \text{Binary} \\
+\hline
+cap-diameter & \text{Float (cm)} & \text{Represents the diameter of the cap of the mushroom} & \text{Two values: min-max, or mean} \\
+cap-shape & \text{Nominal} & \text{Describes the shape of the cap of the mushroom} & \text{bell = b, conical = c, convex = x, flat = f, sunken = s, spherical = p, others = o} \\
+cap-surface & \text{Nominal} & \text{Describes the texture of the cap surface of the mushroom} & \text{fibrous = i, grooves = g, scaly = y, smooth = s, shiny = h, leathery = l, silky = k, sticky = t, wrinkled = w, fleshy = e} \\
+cap-color & \text{Nominal} & \text{Describes the color of the mushroom cap} & \text{brown = n, buff = b, gray = g, green = r, pink = p, purple = u, red = e, white = w, yellow = y, blue = l, orange = o, black = k} \\
+does-bruise-bleed & \text{Nominal} & \text{Indicates whether the mushroom bruises or bleeds when touched} & \text{bruises or bleeding = t, no = f} \\
+gill-attachment & \text{Nominal} & \text{Describes how the gills are attached to the stem} & \text{adnate = a, adnexed = x, decurrent = d, free = e, sinuate = s, pores = p, none = f, unknown = ?} \\
+gill-spacing & \text{Nominal} & \text{Describes the spacing between the gills} & \text{close = c, distant = d, none = f} \\
+gill-color & \text{Nominal} & \text{Describes the color of the gills} & \text{Same as cap-color, none = f} \\
+stem-height & \text{Float (cm)} & \text{Represents the height of the mushroom's stem} & \text{Two values: min-max, or mean} \\
+stem-width & \text{Float (mm)} & \text{Represents the width of the mushroom's stem} & \text{Two values: min-max, or mean} \\
+stem-root & \text{Nominal} & \text{Describes the type of the root of the mushroom's stem} & \text{bulbous = b, swollen = s, club = c, cup = u, equal = e, rhizomorphs = z, rooted = r} \\
+stem-surface & \text{Nominal} & \text{Describes the surface of the stem} & \text{Same as cap-surface, none = f} \\
+stem-color & \text{Nominal} & \text{Describes the color of the stem} & \text{Same as cap-color, none = f} \\
+veil-type & \text{Nominal} & \text{Describes the type of veil covering the mushroom's stem} & \text{partial = p, universal = u} \\
+veil-color & \text{Nominal} & \text{Describes the color of the veil} & \text{Same as cap-color, none = f} \\
+has-ring & \text{Nominal} & \text{Indicates if the mushroom has a ring on the stem} & \text{ring = t, none = f} \\
+ring-type & \text{Nominal} & \text{Describes the type of ring on the mushroom's stem} & \text{cobwebby = c, evanescent = e, flaring = r, grooved = g, large = l, pendant = p, sheathing = s, zone = z, scaly = y, movable = m, none = f, unknown = ?} \\
+spore-print-color & \text{Nominal} & \text{Describes the color of the spore print} & \text{Same as cap-color} \\
+habitat & \text{Nominal} & \text{Describes the habitat where the mushroom is found} & \text{grasses = g, leaves = l, meadows = m, paths = p, heaths = h, urban = u, waste = w, woods = d} \\
+season & \text{Nominal} & \text{Describes the season in which the mushroom is found} & \text{spring = s, summer = u, autumn = a, winter = w} \\
+\hline
+\end{tabular}
+}
+
+
+## Data Preprocessing
+For two value(min, max) of numerical variables, we calculate the mean to present their value.
+```{r}
+# install.packages("table1")
+# install.packages("Hmisc")
+# install.packages("glmnet")
+
+library(readr)
+library(dplyr)
+library(stringr)
+library(table1)
+
+# 讀取資料
+file_path <- "primary_data.csv" 
+data <- read_delim(file_path,
+                   delim = ";",
+                   col_types = cols(.default = "c"))
+
+# 清理資料
+clean_data <- data %>%
+  mutate(across(everything(), ~ str_remove_all(.x, "\\[|\\]"))) %>%
+  mutate(across(everything(), ~ str_squish(.x)))  # 去除多餘的空白
+
+colnames(clean_data) <- gsub("-", "_", colnames(clean_data))
+# write_csv(clean_data, "primary_data_cleaned_R.csv")
+# clean_data
+# str(clean_data)
+
+```
+
+```{r}
+# 定義一個函數來計算兩個數字的平均值，若只有一個數字則保留原數字
+calculate_average <- function(value) {
+  if (grepl(",", value)) {
+    # 如果有兩個數字，用逗號分隔，計算平均值
+    numbers <- as.numeric(strsplit(value, ",")[[1]])
+    return(mean(numbers))
+  } else {
+    # 如果只有一個數字，直接返回
+    return(as.numeric(value))
+  }
+}
+
+clean_data$cap_diameter <- sapply(clean_data$cap_diameter, calculate_average)
+clean_data$stem_height <- sapply(clean_data$stem_height, calculate_average)
+clean_data$stem_width <- sapply(clean_data$stem_width, calculate_average)
+
+# head(clean_data[c("cap_diameter", "stem_height", "stem_width")])
+
+# 若需要，保存更新後的數據
+# write.csv(clean_data, "updated_data.csv", row.names = FALSE)
+
+```
+
+## TableOne
+
+```{r}
+table1(~ cap_diameter + stem_height + stem_width + 
+         cap_shape + Cap_surface + cap_color + does_bruise_or_bleed + 
+         gill_attachment + gill_spacing + gill_color + 
+         stem_root + stem_surface + stem_color + 
+         veil_type + veil_color + 
+         has_ring + ring_type + Spore_print_color + 
+         habitat + season | class, data = clean_data)
+```
+
+## Visualization
+
+Because the distribution of the categorical variables is so sparse, we choose numerical variables to visualize first.
+
+```{r}
+# 加載所需的套件
+library(GGally)
+library(ggplot2)
+
+# 讀取資料集
+data <- read.csv("updated_data.csv")
+
+# 選擇數值型變數來進行 ggpairs
+numeric_data <- data[, c("cap_diameter", "stem_height", "stem_width")]
+
+# 類別型變數
+data$class <- as.factor(data$class)  # 確保 class 是因子型變數
+
+# 使用 ggpairs 來繪製散佈圖矩陣，並按照 class 顯示顏色
+ggpairs(numeric_data, 
+        mapping = ggplot2::aes(color = data$class), 
+        title = "Pairwise Plot of Continuous Variables with Class")
+
+```
+
+## Lasso
+
+We tried lasso to choose important variables; however, because the variables are so sparse that we can find each variable is insignificant to classify the mushroom is edible or not.
+
+```{r}
+library(dplyr)
+library(glmnet)
+
+data <- read.csv("updated_data.csv")
+data$class <- ifelse(data$class == 'p', 1, 0)
+numeric_columns <- c("cap_diameter", "stem_height", "stem_width")
+categorical_columns <- c("cap_shape", "Cap_surface", "cap_color",
+                         "does_bruise_or_bleed", 
+                         "gill_attachment", "gill_spacing", "gill_color",
+                         "stem_root", "stem_surface", "stem_color",
+                         "veil_type", "veil_color", "has_ring", "ring_type", 
+                         "Spore_print_color", "habitat", "season")
+
+# 檢查每個變數的缺失比例，如果遺失值超過30%，就將該變數丟棄
+missing_data <- colSums(is.na(data)) / nrow(data)
+variables_to_keep <- names(missing_data[missing_data <= 0.30])
+data <- data[, variables_to_keep]
+numeric_columns <- intersect(numeric_columns, variables_to_keep)
+categorical_columns <- intersect(categorical_columns, variables_to_keep)
+
+# 類別型變數用眾數補
+for (col in categorical_columns) {
+  mode_value <- names(sort(table(data[[col]]), decreasing = TRUE))[1]  # 計算眾數
+  data[[col]] <- ifelse(is.na(data[[col]]), mode_value, data[[col]])
+}
+data[categorical_columns] <- lapply(data[categorical_columns], as.factor)
+
+
+X <- data[, c(numeric_columns, categorical_columns)]
+y <- data$class
+
+
+X_dummies <- model.matrix(~ . - 1, data = X)  # One-hot encoding
+
+# Lasso
+lasso_model <- cv.glmnet(X_dummies, y, alpha = 1,
+                         family = "binomial", type.measure = "class")
+
+# 最佳 lambda
+lasso_model$lambda.min
+
+# 顯示選擇的變數名稱
+selected_variables <- coef(lasso_model, s = "lambda.min")
+selected_variables <- selected_variables[selected_variables != 0]
+selected_variable_names <- rownames(selected_variables)[-1]
+selected_variable_names
+
+```
