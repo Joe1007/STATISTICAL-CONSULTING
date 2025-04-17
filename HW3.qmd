@@ -1,0 +1,259 @@
+---
+title: "投票資料分析報告"
+date: today
+author: 第八組:吳宜軒、鄭敬恒、邱勃誠、李振偉、康成駿
+format:
+ pdf:
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+         \usepackage{geometry}
+         \geometry{verbose,tmargin=1cm,bmargin=1cm,lmargin=1cm,rmargin=1cm}
+#mainfont: "Microsoft JhengHei UI"
+#mainfont: "Microsoft JhengHei"
+mainfont: "Microsoft JhengHei Bold"
+toc: true
+lang: zh-Tw
+documentclass: article
+pdf-engine: xelatex
+execute:
+  tidy: true
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+library(haven)
+library(tidyverse)
+library(Hmisc)
+
+```
+
+# 1. 資料集介紹與前處理
+- 本筆資料為調查台南市中西區或北區選民欲投票的候選人，並延伸調查各候選人的支持率與選民的熱衷程度，最後針對特定候選人給予其競選的建議。
+
+
+## 資料變數轉換
+
+- 將v4_1~8的變數做轉換，定義成一個新變數:政治熱衷程度(political_interest)，其值的計算方式為一個被訪人知道自己的候選區有幾位候選人
+
+```{r}
+FullData = read_sav("C:/Users/BoCheng/Desktop/Quarto Workspace/poll.sav")
+FullData_ori = FullData
+
+k = rowSums(FullData[,4:11] < 11, na.rm = TRUE)
+political_interest = k
+FullData = cbind(FullData,political_interest)
+```
+
+## 定義變數型態與描述性統計
+
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Variable} & \textbf{Data Type} & \textbf{Definition} & \textbf{Note} \\
+\hline
+v1 & \text{factor} & \text{戶籍在台南市哪一區} & \text{01"北區", 02"中西區", 98 "拒答/戶籍不在臺南市以上幾區/家中無有投票權的人", 99 "遺漏值或跳答"} \\
+
+v2 & \text{factor} & \text{戶籍在北區哪個里?} & \text{01"北華里", 02"元寶里", 03"中樓里", ..., 33"文元里", 44"不知道", 98"拒答", 99"遺漏值或跳答"} \\
+
+v3 & \text{factor} & \text{戶籍在中西區哪個里?} & \text{01"郡王里", 02"赤嵌里", 03"法華里", ..., 20"南門里", 44"不知道", 98"拒答", 99"遺漏值或跳答"} \\
+
+v5 & \text{factor} & \text{若明天要投票，會將票投給誰?} & \text{01"(1號)", 02"(2號)", 03"(3號)", ..., 10"(10號)", 98"無反應", 99"尚未決定", 99"遺漏值或跳答"} \\
+
+v6 & \text{factor} & \text{年齡區間} & \text{01"20-29歲", 02"30-39歲", 03"40-49歲", 04"50-59歲", 05"60歲及以上", 06"不知道或拒答",99"遺漏值或跳答"}\\
+
+v7 & \text{factor} & \text{目前最高的學歷} & \text{01"小學或以下", 02"初中、國中", 03"高中、高職", 04"專科", 05"大學以上",  95"拒答", 99"遺漏值或跳答"} \\
+
+v8 & \text{factor} & \text{受訪者性別} & \text{01"男性", 02"女性", 99"遺漏值或跳答"} \\
+
+political & \text{factor} & \text{政治熱衷程度} & \text{計算每位選民認識候選人的個數, 並factor化，將其定義為政治的熱衷程度(0-8)} \\
+
+\hline
+\end{tabular}
+}
+
+```{r}
+FullData = FullData[,-c(4:11)]
+FullData = FullData %>% mutate(across(c(v1, v2, v3, v5, v6, v7, v8), as.factor))
+FullData$political_interest = as.factor(FullData$political_interest)
+
+```
+
+
+```{r}
+#| results: asis
+latex(describe(FullData), file = '')
+```
+
+
+## 查看缺失值與重複值可能
+
+```{r}
+# 1. 計算整體缺失值總數（row-wise）
+total_na = sum(rowSums(is.na(FullData_ori)))
+
+# 2. 找出重複的 row 數量
+dup_count = sum(duplicated(FullData_ori))
+total_na;dup_count
+# 需要統計較久，所以先註解掉
+# # 3. 取得重複的觀測資料
+# dup_data = FullData_ori %>% filter(duplicated(.))
+# 
+# # 4. 對重複資料進行分組 & 計算出現次數
+# dup_summary = dup_data %>%
+#   group_by(across(1:15)) %>%           # 根據前15欄分組（視需要可改為所有欄）
+#   summarise(times = n(), .groups = "drop")
+# 
+# # 5. 找出每組重複資料第一次出現的位置
+# dup_summary = dup_summary %>%
+#   rowwise() %>%
+#   mutate(location = {
+#     match_row = apply(FullData_ori[, 1:15], 1, function(x) all(x == c_across(1:15), na.rm = TRUE))
+#     which(match_row)[1]
+#   }) %>%
+#   ungroup()
+# # 6. 輸出結果為 CSV
+# write_excel_csv(dup_summary, "RE.csv")
+```
+
+**小結論：**  
+
+- 本資料集無缺失，有153筆重複樣本，但因為無法透過問卷調查的回答選項得知他是不是真的為相同受訪者，所以還是把他們當作不同來進行後續分析，並有將對重複資料進行分組 & 計算出現次數的結果先做匯出。
+
+# 2. 候選人支持度分析
+
+## 支持度計算與視覺化  
+
+- 支持度定義: 扣除"無反應"、"尚未決定"、"遺漏值或跳答"等選項後，各候選人在v5("假設明天要投票，被訪者會投給誰") 的計數中，除以所有人得到的總票數
+
+```{r}
+barplot(table(FullData$political_interest), main = "選民熱衷程度",
+        xlab = "認識幾個候選人", ylab = "頻率", col = "lightpink")
+```
+
+
+```{r}
+support = table(FullData$v5)[-11:-13]/sum(table(FullData$v5)[-11:-13])
+barplot(support, xlab = "候選人", ylab = "支持度",  
+        main = "候選人支持度分析", col = "lightblue")
+```
+**小結論：**  
+
+- 支持度資料已排除"無反應"、"尚未決定"、"遺漏值或跳答"等選項  
+
+- 3號、7號、1號為支持率較高的前三者。  
+
+# 3. 3號候選人競選策略建議
+
+```{r}
+v5_3 = FullData[which(FullData$v5==3),]
+```
+
+## 地理分布
+
+```{r}
+geo_north = table(v5_3$v2)
+geo_midwest = table(v5_3$v3)
+geo_north; geo_midwest
+```
+
+**地區分析結論：**  
+
+- 北區支持者以08 "大港里"為多數  
+
+
+- 中西區支持者以17 "西和里"為多數  
+
+## 人口特徵分析
+
+```{r}
+age = table(v5_3$v6)
+edu = table(v5_3$v7)
+sex = table(v5_3$v8)
+age; edu; sex
+```
+
+**人口特徵結論：**   
+
+- 支持者年齡已"60歲及以上"占多數  
+
+- 支持者的教育程度偏高中高職族群較多。   
+
+- 女性支持者較多。  
+
+**小結論：**    
+
+- 目前北區的"大港里"，中西區的"西和里"有最多支持者，3號候選人應鞏固其票倉；
+而北區的"北華里"、"東興里"、"公園里"、"長勝里"、"力行里"、"永祥里"、"雙安里"皆只有1票；"元寶里"、"賢北里"、"振興里"、"重興里"、"仁愛里"、"大光里"、"立人里"皆只有2票，可以多去拉票。  
+
+- 目前中西區的"西和里"為多數，應該鞏固其票倉，而中西區的遺漏值太多，應該先改進這部份再來看哪個票倉太少，進而多去拉票  
+
+- 年齡越大好像越支持3號候選人，所以應該先轉向爭取年紀較小的選民(ex.20-40歲的青壯年)支持；教育程度則是要提升"專科"支持(因為高中和大學以上目前支持人數都足夠，而考慮到投票年齡限制，尋求專科支持能帶來最大效益);性別差不多平衡，可以繼續保持  
+
+
+# 4. 政治熱衷程度的分析
+
+## 有序邏輯斯模型
+```{r}
+
+library(tidyverse)
+library(MASS)
+
+FullData = FullData %>% mutate(across(c(v1,v6,v7,v8), factor))
+model_4 = polr(political_interest ~ v1 + v6 + v7 + v8, data = FullData, Hess = TRUE)
+summary(model_4)
+p_4 = pnorm(abs(coef(summary(model_4))[, "t value"]), lower.tail = FALSE)*2
+OR_4 = exp(coef(model_4))
+print(cbind(ODDS = round(OR_4,2), p = round(p_4,4)))
+
+```
+
+**參數解釋與模型結論：**  
+
+- 我們選擇使用有序邏輯斯迴歸模型探討政治熱衷程度的影響因素。因為所有變數放入會產生太多dummy variable，讓模型無法收斂，所以在自變數x的選擇上，我們放入v1(北區or中西區), v6(年齡), v7(教育程度), v8(性別)，應變數y則是我們自行定義的political_interest，其中0~9的值則定義為熱衷程度  
+
+- 由於我們模型得出t-value，我們再自行轉換到p-value，以檢查變數哪些是顯著的，同時新增odds ratio的還原以檢視變數之間的倍率比較  
+
+
+- 擬合的結果顯示，v6(年齡)與v7(教育程度)在多數分類中對政治熱中程度具有正向且顯著的影響。例如，某些年齡層，如 v63(年齡40-49歲) 與 v64(年齡50-59歲)的人比參考年齡層v61(20-29歲)更有 2.22倍 倍以上的機率有更高的政治熱衷程度；同樣，教育程度的某些分類，如v74(專科)也比參考組v71(小學或以下)展現了2.09倍以上的機率。此外，性別或特定區域分類中的某些組別如v82(女性)，則顯示對政治的關心程度較低。    
+
+# 5. 3號候選人支持預測模型與不平衡資料處理
+
+## 加權邏輯斯模型
+
+```{r}
+support_3 = ifelse(FullData$v5 == 3, 1, 0)
+FullData$support_3 = factor(support_3)
+weight = ifelse(FullData$support_3 == 1, 1466/205, 1)
+model_5 = glm(support_3 ~ v1 + v6 + v7 + v8, data = FullData, weights = weight, family = quasibinomial(link = "logit"))
+summary(model_5)
+```
+
+**模型結論：**  
+
+- 影響選民支持 3 號候選人的因素，使用加權邏輯斯迴歸模型處理資料中類別不平衡問題。其中weight設定為"沒有投給3號/投給3號的"    
+
+- 結果發現，「區域(v12)」與「教育程度(v72-v74)」為影響支持意向的主要因素。特定區域如 v12(中西區)居民顯著不支持 3 號候選人，而特定教育分類如 v72(國中) 與 v73(高中)則與支持意向呈正向關係。年齡與性別在本模型中未呈現顯著效果。  
+
+## 轉換成勝算比(倍數概念)
+```{r}
+OR_5 = exp(coef(model_5))
+round(OR_5, 2)
+```
+**結論：**   
+
+- 教育程度為初中、國中、高中、高職、專科較支持三號候選人。  
+
+- 戶籍在中西區者支持度明顯較低，相比北區有顯著差距。  
+
+- 年齡與性別對支持與否的影響並不明顯（或樣本不足）。  
+
+建議:  
+
+- 主攻的受眾: 加強對教育程度為初中、國中、高中、高職、專科背景選民的鞏固，且應優先鎖定這群人作為核心支持群體。  
+
+- 區域策略：中西區的支持度偏低，建議針對此區進行針對性的政見溝通或補強形象。可能考慮增加在中西區的曝光率或推出地方型政策吸引當地選民。
+
